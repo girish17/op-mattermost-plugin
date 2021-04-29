@@ -12,9 +12,13 @@ var manifest *model.Manifest
 
 const manifestStr = `
 {
-  "id": "com.mattermost.plugin-starter-template",
-  "name": "Plugin Starter Template",
-  "description": "This plugin serves as a starting point for writing a Mattermost plugin.",
+  "id": "com.girishm.op-mattermost-plugin",
+  "name": "Mattermost plugin for OpenProject",
+  "description": "This plugin serves as a starting point for writing an OpenProject plugin for Mattermost.",
+  "homepage_url": "https://github.com/girish17/op-mattermost-plugin",
+  "support_url": "https://github.com/girish17/op-mattermost-plugin/issues",
+  "release_notes_url": "https://github.com/girish17/op-mattermost-plugin/releases/tag/v0.1.0",
+  "icon_path": "assets/starter-template-icon.svg",
   "version": "0.1.0",
   "min_server_version": "5.12.0",
   "server": {
