@@ -2,7 +2,9 @@ package main
 
 import (
 	"github.com/pkg/errors"
+	"io"
 	"net/http"
+	"strings"
 	"sync"
 
 	"github.com/gorilla/mux"
@@ -52,13 +54,15 @@ func (p *Plugin) OnActivate() error {
 }
 
 func (p *Plugin) ExecuteCommand(c *plugin.Context, args *model.CommandArgs) (*model.CommandResponse, *model.AppError){
-	//siteURL := p.GetSiteURL()
-
+	siteURL := p.GetSiteURL()
+	siteURL = strings.Replace(siteURL, "8065", "3000", 1)
+	res, _ := http.Get(siteURL)
+	txt, _ := io.ReadAll(res.Body)
 	resp := &model.CommandResponse{
-		ResponseType: model.COMMAND_RESPONSE_TYPE_EPHEMERAL,
-		Text: "Hello there!",
+		ResponseType: model.COMMAND_RESPONSE_TYPE_IN_CHANNEL,
+		Text: string(txt),
 		Username: opBot,
-		IconURL: "http://localhost:3000/getLogo",
+		IconURL: siteURL + "/getLogo",
 	}
 	return resp, nil
 }
