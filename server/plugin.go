@@ -1,10 +1,10 @@
 package main
 
 import (
+	"github.com/pkg/errors"
 	"net/http"
 	"sync"
 
-	"github.com/pkg/errors"
 	"github.com/gorilla/mux"
 
 	"github.com/mattermost/mattermost-server/v5/model"
@@ -44,18 +44,55 @@ func (p *Plugin) OnActivate() error {
 		return errors.Wrapf(err, "failed to register %s command", opCommand)
 	}
 
-	if bot, err := p.API.CreateBot(createOpBot()); err != nil {
-		return errors.Wrapf(err, "failed to register %s bot", bot.Username)
-	}
+	//if bot, err := p.API.CreateBot(createOpBot()); err != nil {
+	//	return errors.Wrapf(err, "failed to register %s bot", bot.Username)
+	//}
 
 	return nil
 }
 
+func (p *Plugin) ExecuteCommand(c *plugin.Context, args *model.CommandArgs) (*model.CommandResponse, *model.AppError){
+	//siteURL := p.GetSiteURL()
+
+	resp := &model.CommandResponse{
+		ResponseType: model.COMMAND_RESPONSE_TYPE_EPHEMERAL,
+		Text: "Hello there!",
+		Username: opBot,
+		IconURL: "http://localhost:3000/getLogo",
+	}
+	return resp, nil
+}
+
+func (p *Plugin) GetSiteURL() string {
+	siteURL := ""
+	ptr := p.API.GetConfig().ServiceSettings.SiteURL
+	if ptr != nil {
+		siteURL = *ptr
+	}
+	return siteURL
+}
+
 func createOpCommand() *model.Command {
 	return &model.Command{
-		Trigger:          opCommand,
-		AutoComplete:     true,
-		AutoCompleteDesc: "Invoke OpenProject bot for Mattermost",
+		Id:                   "",
+		Token:                "",
+		CreateAt:             0,
+		UpdateAt:             0,
+		DeleteAt:             0,
+		CreatorId:            "",
+		TeamId:               "",
+		Trigger:              opCommand,
+		Method:               "POST",
+		Username:             "op-mattermost",
+		IconURL:              "http://localhost:3000/getLogo",
+		AutoComplete:         true,
+		AutoCompleteDesc:     "Invoke OpenProject bot for Mattermost",
+		AutoCompleteHint:     "",
+		DisplayName:          "op-mattermost",
+		Description:          "OpenProject integration for Mattermost",
+		URL:                  "http://localhost:3000/",
+		AutocompleteData:     nil,
+		AutocompleteIconData: "",
 	}
 }
 
