@@ -2,7 +2,6 @@ package main
 
 import (
 	"github.com/pkg/errors"
-	"io"
 	"net/http"
 	"strings"
 	"sync"
@@ -56,11 +55,50 @@ func (p *Plugin) OnActivate() error {
 func (p *Plugin) ExecuteCommand(c *plugin.Context, args *model.CommandArgs) (*model.CommandResponse, *model.AppError){
 	siteURL := p.GetSiteURL()
 	siteURL = strings.Replace(siteURL, "8065", "3000", 1)
-	res, _ := http.Get(siteURL)
-	txt, _ := io.ReadAll(res.Body)
+	p.MattermostPlugin.API.OpenInteractiveDialog(model.OpenDialogRequest{
+		TriggerId: args.TriggerId,
+		URL:       siteURL + "/opAuth",
+		Dialog:    model.Dialog{
+			CallbackId:       "op_auth_dlg",
+			Title:            "OpenProject Authentication",
+			IntroductionText: "",
+			IconURL:          siteURL + "/getLogo",
+			Elements: []model.DialogElement{model.DialogElement{
+				DisplayName: "OpenProject URL",
+				Name:        "op_url",
+				Type:        "text",
+				SubType:     "",
+				Default:     "http://localhost:8080",
+				Placeholder: "http://localhost:8080",
+				HelpText:    "Please enter the URL of OpenProject server",
+				Optional:    false,
+				MinLength:   0,
+				MaxLength:   0,
+				DataSource:  "",
+				Options:     nil,
+			}, model.DialogElement{
+				DisplayName: "OpenProject api-key",
+				Name:        "api_key",
+				Type:        "text",
+				SubType:     "",
+				Default:     "",
+				Placeholder: "api-key generated from your account page in OpenProject",
+				HelpText:    "api-key can be generated within 'My account' section of OpenProject",
+				Optional:    false,
+				MinLength:   0,
+				MaxLength:   0,
+				DataSource:  "",
+				Options:     nil,
+			}},
+			SubmitLabel:      "Log in",
+			NotifyOnCancel:   true,
+			State:            "",
+		},
+	})
+
 	resp := &model.CommandResponse{
-		ResponseType: model.COMMAND_RESPONSE_TYPE_IN_CHANNEL,
-		Text: string(txt),
+		ResponseType: model.COMMAND_RESPONSE_TYPE_EPHEMERAL,
+		Text: "opening op auth dialog",
 		Username: opBot,
 		IconURL: siteURL + "/getLogo",
 	}
