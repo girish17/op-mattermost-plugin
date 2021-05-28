@@ -1,12 +1,12 @@
 package main
 
 import (
-	"github.com/pkg/errors"
-	"net/http"
-	"strings"
-	"sync"
-
+	"encoding/json"
 	"github.com/gorilla/mux"
+	"github.com/pkg/errors"
+	"io/ioutil"
+	"net/http"
+	"sync"
 
 	"github.com/mattermost/mattermost-server/v5/model"
 	"github.com/mattermost/mattermost-server/v5/plugin"
@@ -14,7 +14,7 @@ import (
 
 const opCommand = "op"
 const opBot = "op-mattermost"
-
+const intURL = "http://localhost:3000"
 // Plugin implements the interface expected by the Mattermost server to communicate between the server and plugin processes.
 type Plugin struct {
 	plugin.MattermostPlugin
@@ -29,19 +29,38 @@ type Plugin struct {
 	router *mux.Router
 }
 
+func opAuth(p *Plugin, w http.ResponseWriter, r *http.Request) {
+	body, _ := ioutil.ReadAll(r.Body)
+	var jsonBody map[string]interface{}
+	json.Unmarshal(body, &jsonBody)
+	submission := jsonBody["submission"].(map[string]interface{})
+	for key, value := range submission {
+		p.MattermostPlugin.API.LogInfo("Storing OpenProject auth credentials: " + key + ":" + value.(string))
+		p.MattermostPlugin.API.KVSet(key, []byte(value.(string)))
+	}
+	resp, _ := http.Post(intURL, "application/json", r.Body)
+	p.MattermostPlugin.API.CreatePost(model.PostFromJson(resp.Body))
+	//TODO
+}
+
 // ServeHTTP demonstrates a plugin that handles HTTP requests by greeting the world.
 func (p *Plugin) ServeHTTP(c *plugin.Context, w http.ResponseWriter, r *http.Request) {
-	p.router.ServeHTTP(w, r)
+	switch path := r.URL.Path; path {
+	case "/opAuth":
+		opAuth(p, w, r)
+		break
+	default:
+		http.NotFound(w, r)
+	}
 }
 
 // See https://developers.mattermost.com/extend/plugins/server/reference/
-
 func (p *Plugin) OnActivate() error {
 	if p.API.GetConfig().ServiceSettings.SiteURL == nil {
 		p.API.LogError("SiteURL must be set. Some features will operate incorrectly if the SiteURL is not set. See documentation for details: http://about.mattermost.com/default-site-url")
 	}
 
-	if err := p.API.RegisterCommand(createOpCommand()); err != nil {
+	if err := p.API.RegisterCommand(createOpCommand(p.GetSiteURL())); err != nil {
 		return errors.Wrapf(err, "failed to register %s command", opCommand)
 	}
 
@@ -54,18 +73,17 @@ func (p *Plugin) OnActivate() error {
 
 func (p *Plugin) ExecuteCommand(c *plugin.Context, args *model.CommandArgs) (*model.CommandResponse, *model.AppError){
 	siteURL := p.GetSiteURL()
-	siteURL = strings.Replace(siteURL, "8065", "3000", 1)
 	p.MattermostPlugin.API.OpenInteractiveDialog(model.OpenDialogRequest{
 		TriggerId: args.TriggerId,
-		URL:       siteURL + "/opAuth",
+		URL:       siteURL + "/plugins/" + manifest.Id + "/opAuth",
 		Dialog:    model.Dialog{
 			CallbackId:       "op_auth_dlg",
 			Title:            "OpenProject Authentication",
 			IntroductionText: "",
-			IconURL:          siteURL + "/getLogo",
+			IconURL:          intURL + "/getLogo",
 			Elements: []model.DialogElement{model.DialogElement{
 				DisplayName: "OpenProject URL",
-				Name:        "op_url",
+				Name:        "opUrl",
 				Type:        "text",
 				SubType:     "",
 				Default:     "http://localhost:8080",
@@ -78,7 +96,7 @@ func (p *Plugin) ExecuteCommand(c *plugin.Context, args *model.CommandArgs) (*mo
 				Options:     nil,
 			}, model.DialogElement{
 				DisplayName: "OpenProject api-key",
-				Name:        "api_key",
+				Name:        "apiKey",
 				Type:        "text",
 				SubType:     "",
 				Default:     "",
@@ -100,7 +118,7 @@ func (p *Plugin) ExecuteCommand(c *plugin.Context, args *model.CommandArgs) (*mo
 		ResponseType: model.COMMAND_RESPONSE_TYPE_EPHEMERAL,
 		Text: "opening op auth dialog",
 		Username: opBot,
-		IconURL: siteURL + "/getLogo",
+		IconURL: intURL + "/getLogo",
 	}
 	return resp, nil
 }
@@ -114,27 +132,18 @@ func (p *Plugin) GetSiteURL() string {
 	return siteURL
 }
 
-func createOpCommand() *model.Command {
+func createOpCommand(siteURL string) *model.Command {
 	return &model.Command{
-		Id:                   "",
-		Token:                "",
-		CreateAt:             0,
-		UpdateAt:             0,
-		DeleteAt:             0,
-		CreatorId:            "",
-		TeamId:               "",
 		Trigger:              opCommand,
 		Method:               "POST",
 		Username:             "op-mattermost",
-		IconURL:              "http://localhost:3000/getLogo",
+		IconURL:              intURL + "/getLogo",
 		AutoComplete:         true,
 		AutoCompleteDesc:     "Invoke OpenProject bot for Mattermost",
 		AutoCompleteHint:     "",
 		DisplayName:          "op-mattermost",
 		Description:          "OpenProject integration for Mattermost",
-		URL:                  "http://localhost:3000/",
-		AutocompleteData:     nil,
-		AutocompleteIconData: "",
+		URL:                  intURL,
 	}
 }
 
