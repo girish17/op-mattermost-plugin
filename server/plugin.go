@@ -6,6 +6,7 @@ import (
 	"github.com/pkg/errors"
 	"io/ioutil"
 	"net/http"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -16,6 +17,8 @@ import (
 
 const opCommand = "op"
 const opBot = "op-mattermost"
+
+var pluginURL string
 
 // Plugin implements the interface expected by the Mattermost server to communicate between the server and plugin processes.
 type Plugin struct {
@@ -35,9 +38,10 @@ type Plugin struct {
 func (p *Plugin) ServeHTTP(c *plugin.Context, w http.ResponseWriter, r *http.Request) {
 	switch path := r.URL.Path; path {
 	case "/opAuth":
-		util.OpAuth(p.MattermostPlugin, w, r)
+		util.OpAuth(p.MattermostPlugin, w, r, pluginURL)
 		break
 	case "/createTimeLog":
+		util.ShowSelProject(p.MattermostPlugin, w, r, pluginURL)
 		break
 	case "/projSel":
 		break
@@ -78,9 +82,8 @@ func (p *Plugin) OnActivate() error {
 
 func (p *Plugin) ExecuteCommand(c *plugin.Context, args *model.CommandArgs) (*model.CommandResponse, *model.AppError){
 	siteURL := p.GetSiteURL()
-	pluginURL := util.GetPluginURL(siteURL)
+	pluginURL = getPluginURL(siteURL)
 	p.API.LogDebug("Plugin URL :"+pluginURL)
-
 	if opUserID, _ := p.API.KVGet(args.UserId); opUserID == nil {
 		p.API.LogDebug("Creating interactive dialog...")
 		p.MattermostPlugin.API.OpenInteractiveDialog(model.OpenDialogRequest{
@@ -129,6 +132,8 @@ func (p *Plugin) ExecuteCommand(c *plugin.Context, args *model.CommandArgs) (*mo
 		opUrlStr := apiKeyStr[1]
 		p.API.LogInfo("Retrieving from KV: opURL - " + opUrlStr + " apiKey - " + apiKeyStr[0])
 
+		var cmdResp *model.CommandResponse
+
 		client := &http.Client{}
 		req, _ := http.NewRequest("GET", opUrlStr + "/api/v3/users/me", nil)
 		req.SetBasicAuth("apikey", apiKeyStr[0])
@@ -139,9 +144,9 @@ func (p *Plugin) ExecuteCommand(c *plugin.Context, args *model.CommandArgs) (*mo
 		p.MattermostPlugin.API.LogDebug("Response from op-mattermost: ", opJsonRes["firstName"])
 
 		var attachmentMap map[string]interface{}
-		json.Unmarshal([]byte(util.GetAttachmentJSON(siteURL)), &attachmentMap)
+		json.Unmarshal([]byte(util.GetAttachmentJSON(pluginURL)), &attachmentMap)
 
-		cmdResp := &model.CommandResponse{
+		cmdResp = &model.CommandResponse{
 			ResponseType: model.COMMAND_RESPONSE_TYPE_IN_CHANNEL,
 			Text: "Hello "+opJsonRes["name"]+" :)",
 			Username: opBot,
@@ -163,7 +168,11 @@ func (p *Plugin) GetSiteURL() string {
 }
 
 func getLogoURL(siteURL string) string {
-	return util.GetPluginURL(siteURL) + "/public/op_logo.jpg"
+	return getPluginURL(siteURL) + "/public/op_logo.jpg"
+}
+
+func getPluginURL(siteURL string) string {
+	return siteURL + "/plugins/" + manifest.Id
 }
 
 func createOpCommand(siteURL string) *model.Command {
@@ -178,5 +187,26 @@ func createOpCommand(siteURL string) *model.Command {
 		DisplayName:          opBot,
 		Description:          "OpenProject integration for Mattermost",
 		URL:                  siteURL,
+	}
+}
+
+func (p *Plugin) setBotIcon() {
+	bundlePath, err := p.API.GetBundlePath()
+	if err != nil {
+		p.API.LogError("failed to get bundle path", err)
+	}
+
+	profileImage, err := ioutil.ReadFile(filepath.Join(bundlePath, "assets", "op_logo.svg"))
+	if err != nil {
+		p.API.LogError("failed to read profile image", err)
+	}
+
+	user, err := p.API.GetBot(opBot, false)
+	if err != nil {
+		p.API.LogError("failed to fetch bot user", err)
+	}
+
+	if appErr := p.API.SetBotIconImage(user.UserId, profileImage); appErr != nil {
+		p.API.LogError("failed to set profile image", appErr)
 	}
 }

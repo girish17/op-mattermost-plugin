@@ -10,12 +10,16 @@ import (
 
 const opBot = "op-mattermost"
 
-func GetPluginURL(siteURL string) string {
-	return siteURL + "/plugins/com.girishm.op-mattermost-plugin"
-}
 
-func GetAttachmentJSON(siteURL string) string {
-	pluginURL := GetPluginURL(siteURL)
+var menuPost *model.Post
+
+var client =  &http.Client{}
+
+var opUrlStr string
+
+var apiKeyStr string
+
+func GetAttachmentJSON(pluginURL string) string {
 	return `{
 			"attachments": [
 				  {
@@ -81,9 +85,14 @@ func GetAttachmentJSON(siteURL string) string {
 		}`
 }
 
-var menuPost *model.Post
+func setOPStr(p plugin.MattermostPlugin) {
+	opUrl, _ := p.API.KVGet("opUrl")
+	apiKey, _ := p.API.KVGet("apiKey")
+	opUrlStr = string(opUrl)
+	apiKeyStr = string(apiKey)
+}
 
-func OpAuth(p plugin.MattermostPlugin, w http.ResponseWriter, r *http.Request) {
+func OpAuth(p plugin.MattermostPlugin, w http.ResponseWriter, r *http.Request, pluginURL string) {
 	body, _ := ioutil.ReadAll(r.Body)
 	var jsonBody map[string]interface{}
 	json.Unmarshal(body, &jsonBody)
@@ -94,17 +103,13 @@ func OpAuth(p plugin.MattermostPlugin, w http.ResponseWriter, r *http.Request) {
 		p.API.LogInfo("Storing OpenProject auth credentials: " + key + ":" + value.(string))
 		p.API.KVSet(key, []byte(value.(string)))
 	}
-	opUrl, _ := p.API.KVGet("opUrl")
-	apiKey, _ := p.API.KVGet("apiKey")
-	opUrlStr := string(opUrl)
-	apiKeyStr := string(apiKey)
+	setOPStr(p)
 	opUserID := []byte(apiKeyStr + " " + opUrlStr)
 
 	p.API.KVDelete(opUrlStr)
 	p.API.KVDelete(apiKeyStr)
 
 	user, _ := p.API.GetUserByUsername(opBot)
-	client := &http.Client{}
 	req, _ := http.NewRequest("GET", opUrlStr + "/api/v3/users/me", nil)
 	req.SetBasicAuth("apikey", apiKeyStr)
 	resp, err := client.Do(req)
@@ -122,7 +127,7 @@ func OpAuth(p plugin.MattermostPlugin, w http.ResponseWriter, r *http.Request) {
 				Message:       "Hello "+opJsonRes["name"]+" :)",
 			}
 			var attachmentMap map[string]interface{}
-			json.Unmarshal([]byte(GetAttachmentJSON(*p.API.GetConfig().ServiceSettings.SiteURL)), &attachmentMap)
+			json.Unmarshal([]byte(GetAttachmentJSON(pluginURL)), &attachmentMap)
 			post.SetProps(attachmentMap)
 		} else {
 			p.API.LogError(opJsonRes["errorIdentifier"] + " " + opJsonRes["message"])
@@ -142,6 +147,47 @@ func OpAuth(p plugin.MattermostPlugin, w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	menuPost, _ = p.API.CreatePost(post)
+}
+
+func ShowSelProject(p plugin.MattermostPlugin, w http.ResponseWriter, r *http.Request, pluginURL string)  {
+	body, _ := ioutil.ReadAll(r.Body)
+	var jsonBody map[string]interface{}
+	json.Unmarshal(body, &jsonBody)
+	p.API.LogInfo("apikey: "+apiKeyStr+" opURL: "+opUrlStr)
+	//user, _ := p.API.GetUserByUsername(opBot)
+	req, _ := http.NewRequest("GET", opUrlStr + `/api/v3/projects`, nil)
+	req.SetBasicAuth("apikey", apiKeyStr)
+	resp, err := client.Do(req)
+	//var post *model.Post
+	if err == nil {
+		opResBody, _ := ioutil.ReadAll(resp.Body)
+		var opJsonRes map[string]interface{}
+		json.Unmarshal(opResBody, &opJsonRes)
+		p.API.LogInfo("Projects response from op-mattermost: ", opJsonRes)
+		if opJsonRes["_type"] != "Error" {
+			p.API.LogInfo("Projects obtained from OP: ")
+			for k, v := range opJsonRes {
+				p.API.LogInfo(k, v)
+			}
+		} else {
+			p.API.LogError("Failed to fetch projects from OpenProject")
+			//post = &model.Post{
+			//	Id:            menuPost.Id,
+			//	UserId:        user.Id,
+			//	ChannelId:     jsonBody["channel_id"].(string),
+			//	Message:       "Failed to fetch projects from OpenProject",
+			//}
+		}
+	} else {
+		p.API.LogError("Failed to fetch projects from OpenProject: ", err)
+		//post = &model.Post{
+		//	Id:            menuPost.Id,
+		//	UserId:        user.Id,
+		//	ChannelId:     jsonBody["channel_id"].(string),
+		//	Message:       "Failed to fetch projects from OpenProject. Please try again.",
+		//}
+	}
+	//p.API.UpdatePost(post)
 }
 
 func Logout(p plugin.MattermostPlugin, w http.ResponseWriter, r *http.Request) {
