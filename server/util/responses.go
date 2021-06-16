@@ -26,6 +26,6 @@ type Attachment struct {
 	Actions []Action `json:"actions"`
 }
 
-type ProjectOptAttachments struct {
+type OptAttachments struct {
 	Attachments []Attachment `json:"attachments"`
 }

@@ -47,6 +47,7 @@ func (p *Plugin) ServeHTTP(c *plugin.Context, w http.ResponseWriter, r *http.Req
 		util.WPHandler(p.MattermostPlugin, w, r, pluginURL)
 		break
 	case "/wpSel":
+		util.LoadTimeLogDlg(p.MattermostPlugin, w, r, pluginURL)
 		break
 	case "/logTime":
 		break
