@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"github.com/mattermost/mattermost-server/v5/model"
 	"github.com/mattermost/mattermost-server/v5/plugin"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"strconv"
@@ -245,13 +246,19 @@ func OpAuth(p plugin.MattermostPlugin, w http.ResponseWriter, r *http.Request, p
 			var attachmentMap map[string]interface{}
 			_ = json.Unmarshal([]byte(GetAttachmentJSON(pluginURL)), &attachmentMap)
 			post.SetProps(attachmentMap)
+			w.WriteHeader(200)
+			w.Write([]byte("Authenticated successfully."))
 		} else {
 			p.API.LogError(opJsonRes["errorIdentifier"] + " " + opJsonRes["message"])
 			post = getCreatePostMsg(user.Id, jsonBody["channel_id"].(string), opJsonRes["message"])
+			w.WriteHeader(500)
+			w.Write([]byte(opJsonRes["message"]))
 		}
 	} else {
 			p.API.LogError("OpenProject login failed: ", err)
 			post = getCreatePostMsg(user.Id, jsonBody["channel_id"].(string), "OpenProject authentication failed. Please try again.")
+			w.WriteHeader(400)
+			w.Write([]byte(err.Error()))
 	}
 	menuPost, _ = p.API.CreatePost(post)
 }
@@ -278,13 +285,19 @@ func ShowSelProject(p plugin.MattermostPlugin, w http.ResponseWriter, r *http.Re
 			var attachmentMap map[string]interface{}
 			_ = json.Unmarshal(getProjectOptAttachmentJSON(pluginURL, "showSelWP", options), &attachmentMap)
 			post.SetProps(attachmentMap)
+			w.WriteHeader(200)
+			w.Write([]byte("Project select created successfully."))
 		} else {
 			p.API.LogError("Failed to fetch projects from OpenProject")
 			post = getUpdatePostMsg(user.Id, jsonBody["channel_id"].(string), "Failed to fetch projects from OpenProject")
+			w.WriteHeader(500)
+			w.Write([]byte(err.Error()))
 		}
 	} else {
 		p.API.LogError("Failed to fetch projects from OpenProject: ", err)
 		post = getUpdatePostMsg(user.Id, jsonBody["channel_id"].(string), "Failed to fetch projects from OpenProject")
+		w.WriteHeader(400)
+		w.Write([]byte(err.Error()))
 	}
 	p.API.UpdatePost(post)
 }
@@ -328,13 +341,19 @@ func WPHandler(p plugin.MattermostPlugin, w http.ResponseWriter, r *http.Request
 				var attachmentMap map[string]interface{}
 				_ = json.Unmarshal(getWPOptAttachmentJSON(pluginURL, "showTimeLogDlg", options), &attachmentMap)
 				post.SetProps(attachmentMap)
+				w.WriteHeader(200)
+				w.Write([]byte("WP select created successfully."))
 			} else {
 				p.API.LogError("Failed to fetch work packages from OpenProject")
 				post = getUpdatePostMsg(user.Id, jsonBody["channel_id"].(string), "Failed to work packages from OpenProject")
+				w.WriteHeader(500)
+				w.Write([]byte(err.Error()))
 			}
 		} else {
 			p.API.LogError("Failed to fetch work packages from OpenProject: ", err)
 			post = getUpdatePostMsg(user.Id, jsonBody["channel_id"].(string), "Failed to work packages from OpenProject")
+			w.WriteHeader(400)
+			w.Write([]byte(err.Error()))
 		}
 		p.API.UpdatePost(post)
 		break
@@ -344,8 +363,6 @@ func WPHandler(p plugin.MattermostPlugin, w http.ResponseWriter, r *http.Request
 		w.WriteHeader(400)
 		w.Write([]byte("Invalid action type"))
 	}
-	w.WriteHeader(200)
-	w.Write([]byte("Finished WPHandler"))
 }
 
 func LoadTimeLogDlg(p plugin.MattermostPlugin, w http.ResponseWriter, r *http.Request, pluginURL string) {
@@ -438,15 +455,21 @@ func LoadTimeLogDlg(p plugin.MattermostPlugin, w http.ResponseWriter, r *http.Re
 				})
 				post = getUpdatePostMsg(user.Id, jsonBody["channel_id"].(string), "Opening time log dialog...")
 				p.API.UpdatePost(post)
+				w.WriteHeader(200)
+				w.Write([]byte("Dialog created successfully."))
 			} else {
 				p.API.LogError("Failed to fetch activities from OpenProject")
 				post = getUpdatePostMsg(user.Id, jsonBody["channel_id"].(string), "Failed to activities from OpenProject")
 				p.API.UpdatePost(post)
+				w.WriteHeader(500)
+				w.Write([]byte("Failed to fetch activities from OpenProject"))
 			}
 		} else {
 			p.API.LogError("Failed to fetch activities from OpenProject")
 			post = getUpdatePostMsg(user.Id, jsonBody["channel_id"].(string), "Failed to activities from OpenProject")
 			p.API.UpdatePost(post)
+			w.WriteHeader(400)
+			w.Write([]byte(err.Error()))
 		}
 		break
 	case "cnfDelWP":
@@ -464,7 +487,11 @@ func Logout(p plugin.MattermostPlugin, w http.ResponseWriter, r *http.Request) {
 		mmUserID := jsonBody["user_id"].(string)
 		p.API.LogInfo("Deleting op login for mm user id: " + mmUserID)
 		_ = p.API.KVDelete(mmUserID)
+
 		user, _ := p.API.GetUserByUsername(opBot)
 		post := getUpdatePostMsg(user.Id, jsonBody["channel_id"].(string), ":wave:")
 		_, _ = p.API.UpdatePost(post)
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		io.WriteString(w, "Logged out successfully.")
+		w.WriteHeader(http.StatusOK)
 }
