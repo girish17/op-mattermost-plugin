@@ -50,16 +50,22 @@ func (p *Plugin) ServeHTTP(c *plugin.Context, w http.ResponseWriter, r *http.Req
 		util.LoadTimeLogDlg(p.MattermostPlugin, w, r, pluginURL)
 		break
 	case "/logTime":
+		http.NotFound(w, r)
 		break
 	case "/getTimeLog":
+		util.GetTimeLog(p.MattermostPlugin, w, r, pluginURL)
 		break
 	case "/delTimeLog":
+		http.NotFound(w, r)
 		break
 	case "/createWP":
+		http.NotFound(w, r)
 		break
 	case "/saveWP":
+		http.NotFound(w, r)
 		break
 	case "/delWP":
+		http.NotFound(w, r)
 		break
 	case "/bye":
 		util.Logout(p.MattermostPlugin, w, r)
