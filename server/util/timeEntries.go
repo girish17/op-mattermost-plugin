@@ -21,7 +21,7 @@ type Activity struct {
 	HasDefault bool             `json:"hasDefault"`
 	Writable   bool             `json:"writable"`
 	Location   string           `json:"location"`
-	Embedded struct{
+	Embedded   struct{
 		AllowedValues []AllowedValues `json:"allowedValues"`
 	} `json:"_embedded"`
 }
@@ -138,4 +138,48 @@ type TimeEntriesBody struct {
 			Href string `json:"href"`
 		} `json:"workPackage"`
 	} `json:"_links"`
+}
+
+type UpdateImmediately struct {
+	Href   string `json:"href"`
+	Method string `json:"method"`
+}
+
+type Delete struct {
+	Href   string `json:"href"`
+	Method string `json:"method"`
+}
+
+type TimeLinks struct {
+	Self              Self              `json:"self"`
+	UpdateImmediately UpdateImmediately `json:"updateImmediately"`
+	Delete            Delete            `json:"delete"`
+	Project           Link              `json:"project"`
+	WorkPackage       Link              `json:"workPackage"`
+	User              Link              `json:"user"`
+	Activity          Link              `json:"activity"`
+	CustomField1      Link              `json:"CustomField1"`
+}
+
+type TimeElement struct {
+	Type         string    `json:"_type"`
+	Id           int       `json:"id"`
+	Comment      Comment   `json:"comment"`
+	SpentOn      string    `json:"spentOn"`
+	Hours        string    `json:"hours"`
+	CreatedAt    string    `json:"createdAt"`
+	UpdatedAt    string    `json:"updatedAt"`
+	Links        TimeLinks `json:"_links"`
+	CustomField1 float64   `json:"customField1"`
+}
+
+type TimeEntryList struct {
+	Type              string            `json:"_type"`
+	Total             int               `json:"total"`
+	Count             int               `json:"count"`
+	PageSize          int               `json:"pageSize"`
+	Offset            int               `json:"offset"`
+	Embedded struct{
+		Elements []TimeElement `json:"elements"`
+	} `json:"_embedded"`
 }
