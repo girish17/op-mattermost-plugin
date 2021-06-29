@@ -5,13 +5,12 @@ import (
 	"encoding/json"
 	"github.com/mattermost/mattermost-server/v5/model"
 	"github.com/mattermost/mattermost-server/v5/plugin"
+	"github.com/senseyeio/duration"
 	"io/ioutil"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/senseyeio/duration"
 )
 
 const opBot = "op-mattermost"
@@ -369,7 +368,7 @@ func LoadTimeLogDlg(p plugin.MattermostPlugin, w http.ResponseWriter, r *http.Re
 	body, _ := ioutil.ReadAll(r.Body)
 	var jsonBody map[string]interface{}
 	_ = json.Unmarshal(body, &jsonBody)
-	var triggerId = jsonBody["trigger_id"].(string)
+	triggerId := jsonBody["trigger_id"].(string)
 	submission := jsonBody["context"].(map[string]interface{})
 	var action string
 	var selectedOption []string
@@ -404,8 +403,6 @@ func LoadTimeLogDlg(p plugin.MattermostPlugin, w http.ResponseWriter, r *http.Re
 			p.API.LogDebug("Time entries response from OpenProject: ", opJsonRes)
 			if opJsonRes.Type != "Error" {
 				var options = getOptArrayForAllowedValues(opJsonRes.Embedded.Schema.Activity.Embedded.AllowedValues)
-				p.API.LogInfo("Activities from op-mattermost: ", options)
-				p.API.LogDebug("Trigger ID for log time dialog: ", triggerId)
 				openLogTimeDialog(p, triggerId, pluginURL, options)
 				post = getUpdatePostMsg(user.Id, jsonBody["channel_id"].(string), "Opening time log dialog...")
 				p.API.UpdatePost(post)
@@ -434,7 +431,9 @@ func LoadTimeLogDlg(p plugin.MattermostPlugin, w http.ResponseWriter, r *http.Re
 }
 
 func openLogTimeDialog(p plugin.MattermostPlugin, triggerId string, pluginURL string, options []*model.PostActionOptions) {
-	p.API.OpenInteractiveDialog(model.OpenDialogRequest{
+	p.API.LogInfo("Activities from op-mattermost: ", options)
+	p.API.LogDebug("Trigger ID for log time dialog: ", triggerId)
+	dialog := p.API.OpenInteractiveDialog(model.OpenDialogRequest{
 		TriggerId: triggerId,
 		URL:       pluginURL + "/logTime",
 		Dialog: model.Dialog{
@@ -481,6 +480,7 @@ func openLogTimeDialog(p plugin.MattermostPlugin, triggerId string, pluginURL st
 			NotifyOnCancel: true,
 		},
 	})
+	p.API.LogDebug("Dialog object returned: ", dialog)
 }
 
 func GetTimeLog(p plugin.MattermostPlugin, w http.ResponseWriter, r *http.Request, pluginURL string) {
