@@ -65,7 +65,7 @@ func (p *Plugin) ServeHTTP(c *plugin.Context, w http.ResponseWriter, r *http.Req
 		http.NotFound(w, r)
 		break
 	case "/delWP":
-		http.NotFound(w, r)
+		util.ShowDelWPSel(p.MattermostPlugin, w, r, pluginURL)
 		break
 	case "/bye":
 		util.Logout(p.MattermostPlugin, w, r)

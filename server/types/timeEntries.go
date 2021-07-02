@@ -1,17 +1,17 @@
-package util
+package types
 
 type ActivityLinks struct {
-	Self      Self   `json:"self"`
-	Projects  []Self `json:"projects"`
+	Self     Self   `json:"self"`
+	Projects []Self `json:"projects"`
 }
 
 type AllowedValues struct {
-	Type       string           `json:"type"`
-	Id         int              `json:"id"`
-	Name       string           `json:"name"`
-	Position   int              `json:"position"`
-	Default    bool             `json:"default"`
-	Links      ActivityLinks    `json:"_links"`
+	Type     string        `json:"type"`
+	Id       int           `json:"id"`
+	Name     string        `json:"name"`
+	Position int           `json:"position"`
+	Default  bool          `json:"default"`
+	Links    ActivityLinks `json:"_links"`
 }
 
 type Activity struct {
@@ -35,7 +35,7 @@ type Rtl struct {
 }
 
 type TimeEntryOption struct {
-	Rtl  Rtl `json:"rtl"`
+	Rtl Rtl `json:"rtl"`
 }
 
 type AllowedValue struct {
@@ -53,7 +53,7 @@ type TimeEntryWP struct {
 	HasDefault bool             `json:"hasDefault"`
 	Writable   bool             `json:"writable"`
 	Location   string           `json:"location"`
-	Links      LinksTimeEntryWP  `json:"_links"`
+	Links      LinksTimeEntryWP `json:"_links"`
 }
 
 type Id struct {
@@ -70,19 +70,19 @@ type SchemaLinks struct {
 }
 
 type Schema struct {
-	Type         string        `json:"_type"`
-	Dependencies []Dependency  `json:"_dependencies"`
-	Id           Id            `json:"id"`
-	CreatedAt    Id            `json:"createdAt"`
-	UpdatedAt    Id            `json:"updatedAt"`
-	SpentOn      Id            `json:"spentOn"`
-	Hours        Id            `json:"hours"`
-	User         Id            `json:"user"`
-	WorkPackage  TimeEntryWP   `json:"workPackage"`
-	Project      TimeEntryWP   `json:"project"`
-	Activity     Activity      `json:"activity"`
-	CustomField1 Id            `json:"customField1"`
-	Links        SchemaLinks   `json:"_links"`
+	Type         string       `json:"_type"`
+	Dependencies []Dependency `json:"_dependencies"`
+	Id           Id           `json:"id"`
+	CreatedAt    Id           `json:"createdAt"`
+	UpdatedAt    Id           `json:"updatedAt"`
+	SpentOn      Id           `json:"spentOn"`
+	Hours        Id           `json:"hours"`
+	User         Id           `json:"user"`
+	WorkPackage  TimeEntryWP  `json:"workPackage"`
+	Project      TimeEntryWP  `json:"project"`
+	Activity     Activity     `json:"activity"`
+	CustomField1 Id           `json:"customField1"`
+	Links        SchemaLinks  `json:"_links"`
 }
 
 type Link struct {
@@ -91,9 +91,9 @@ type Link struct {
 }
 
 type PayloadLinks struct {
-	Project     Link    `json:"project"`
-	Activity    Link    `json:"activity"`
-	WorkPackage Link    `json:"workPackage"`
+	Project     Link `json:"project"`
+	Activity    Link `json:"activity"`
+	WorkPackage Link `json:"workPackage"`
 }
 
 type Comment struct {
@@ -115,9 +115,9 @@ type ValidationError struct {
 }
 
 type EmbeddedTimeEntry struct {
-    Payload           Payload         `json:"payload"`
-    Schema            Schema          `json:"schema"`
-    ValidationErrors  ValidationError `json:"validationErrors"`
+    Payload          Payload         `json:"payload"`
+    Schema           Schema          `json:"schema"`
+    ValidationErrors ValidationError `json:"validationErrors"`
 }
 
 type LinksTimeEntry struct {
@@ -127,9 +127,9 @@ type LinksTimeEntry struct {
 }
 
 type TimeEntries struct {
-	Type              string            `json:"_type"`
-	Embedded          EmbeddedTimeEntry `json:"_embedded"`
-	Links             LinksTimeEntry    `json:"_links"`
+	Type     string            `json:"_type"`
+	Embedded EmbeddedTimeEntry `json:"_embedded"`
+	Links    LinksTimeEntry    `json:"_links"`
 }
 
 type TimeEntriesBody struct {
