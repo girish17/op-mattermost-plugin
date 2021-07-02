@@ -34,7 +34,7 @@ type Plugin struct {
 	router *mux.Router
 }
 
-// ServeHTTP demonstrates a plugin that handles HTTP requests by greeting the world.
+// ServeHTTP demonstrates a plugin that handles HTTP requests.
 func (p *Plugin) ServeHTTP(c *plugin.Context, w http.ResponseWriter, r *http.Request) {
 	switch path := r.URL.Path; path {
 	case "/opAuth":
@@ -94,42 +94,13 @@ func (p *Plugin) ExecuteCommand(c *plugin.Context, args *model.CommandArgs) (*mo
 	p.API.LogDebug("Plugin URL :"+pluginURL)
 	if opUserID, _ := p.API.KVGet(args.UserId); opUserID == nil {
 		p.API.LogDebug("Creating interactive dialog...")
-		p.MattermostPlugin.API.OpenInteractiveDialog(model.OpenDialogRequest{
-			TriggerId: args.TriggerId,
-			URL:        pluginURL + "/opAuth",
-			Dialog:    model.Dialog{
-				CallbackId:       "op_auth_dlg",
-				Title:            "OpenProject Authentication",
-				IntroductionText: "Please enter credentials to log in",
-				IconURL:          getLogoURL(siteURL),
-				Elements: []model.DialogElement{model.DialogElement{
-					DisplayName: "OpenProject URL",
-					Name:        "opUrl",
-					Type:        "text",
-					Default:     "http://localhost:8080",
-					Placeholder: "http://localhost:8080",
-					Optional:    false,
-					HelpText:    "Please enter the URL of OpenProject server",
-				}, model.DialogElement{
-					DisplayName: "OpenProject api-key",
-					Name:        "apiKey",
-					Type:        "text",
-					Placeholder: "api-key generated from your account page in OpenProject",
-					Optional:    false,
-					HelpText:    "api-key can be generated within 'My account' section of OpenProject",
-				}},
-				SubmitLabel:      "Log in",
-				NotifyOnCancel:   true,
-			},
-		})
-
+		openAuthDialog(p, args.TriggerId, siteURL)
 		resp := &model.CommandResponse{
 			ResponseType: model.COMMAND_RESPONSE_TYPE_EPHEMERAL,
 			Text: "opening op auth dialog",
 			Username: opBot,
 			IconURL: getLogoURL(siteURL),
 		}
-
 		return resp, nil
 	} else {
 		cmd := args.Command
@@ -196,6 +167,37 @@ func createOpCommand(siteURL string) *model.Command {
 		Description:          "OpenProject integration for Mattermost",
 		URL:                  siteURL,
 	}
+}
+
+func openAuthDialog(p *Plugin, triggerId string, siteURL string) {
+	p.MattermostPlugin.API.OpenInteractiveDialog(model.OpenDialogRequest{
+		TriggerId: triggerId,
+		URL:        pluginURL + "/opAuth",
+		Dialog:    model.Dialog{
+			CallbackId:       "op_auth_dlg",
+			Title:            "OpenProject Authentication",
+			IntroductionText: "Please enter credentials to log in",
+			IconURL:          getLogoURL(siteURL),
+			Elements: []model.DialogElement{model.DialogElement{
+				DisplayName: "OpenProject URL",
+				Name:        "opUrl",
+				Type:        "text",
+				Default:     "http://localhost:8080",
+				Placeholder: "http://localhost:8080",
+				Optional:    false,
+				HelpText:    "Please enter the URL of OpenProject server",
+			}, model.DialogElement{
+				DisplayName: "OpenProject api-key",
+				Name:        "apiKey",
+				Type:        "text",
+				Placeholder: "api-key generated from your account page in OpenProject",
+				Optional:    false,
+				HelpText:    "api-key can be generated within 'My account' section of OpenProject",
+			}},
+			SubmitLabel:      "Log in",
+			NotifyOnCancel:   true,
+		},
+	})
 }
 
 func (p *Plugin) setBotIcon() {
