@@ -1,8 +1,8 @@
 package util
 
 import (
-	"bytes"
 	"encoding/json"
+	"github.com/girish17/op-mattermost-plugin/server/types"
 	"github.com/mattermost/mattermost-server/v5/model"
 	"github.com/mattermost/mattermost-server/v5/plugin"
 	"github.com/senseyeio/duration"
@@ -26,195 +26,6 @@ var opUrlStr string
 
 var apiKeyStr string
 
-func getProjectOptAttachmentJSON(pluginURL string, action string, options []Option) []byte {
-	attachments := OptAttachments{Attachments: []Attachment{
-		{
-			Actions: []Action{
-				{
-					Name:        "Type to search for a project...",
-					Integration: Integration{
-						Url:     pluginURL + "/projSel",
-						Context: Context{
-							Action: action,
-						},
-					},
-					Type:        "select",
-					Options:     options,
-				},
-				{
-					Name:        "Cancel Project search",
-					Integration: Integration{
-						Url: pluginURL + "/bye",
-					},
-				},
-			},
-		},
-		},
-	}
-	attachmentsJSON, _ := json.Marshal(attachments)
-	return attachmentsJSON
-}
-
-func getWPOptAttachmentJSON(pluginURL string, action string, options []Option) []byte {
-	attachments := OptAttachments{Attachments: []Attachment{
-		{
-			Actions: []Action{
-				{
-					Name:        "Type to search for a work package...",
-					Integration: Integration{
-						Url:     pluginURL + "/wpSel",
-						Context: Context{
-							Action: action,
-						},
-					},
-					Type:        "select",
-					Options:     options,
-				},
-				{
-					Name:        "Cancel WP search",
-					Integration: Integration{
-						Url: pluginURL + "/createTimeLog",
-					},
-				},
-			},
-		},
-	},
-	}
-	attachmentsJSON, _ := json.Marshal(attachments)
-	return attachmentsJSON
-}
-
-func getOptArrayForProjectElements(elements []Element) []Option {
-	var options []Option
-	for _, element := range elements {
-		id := strconv.Itoa(element.Id)
-		options = append(options, Option{
-			Text:  element.Name,
-			Value: "opt" + id,
-		})
-	}
-	return options
-}
-
-func getOptArrayForWPElements(elements []Element) []Option {
-	var options []Option
-	for _, element := range elements {
-		id := strconv.Itoa(element.Id)
-		options = append(options, Option{
-			Text:  element.Subject,
-			Value: "opt" + id,
-		})
-	}
-	return options
-}
-
-func getOptArrayForAllowedValues(allowedValues []AllowedValues) []*model.PostActionOptions {
-	var postActionOptions []*model.PostActionOptions
-	for _, value := range allowedValues {
-		id := strconv.Itoa(value.Id)
-		postActionOptions = append(postActionOptions, &model.PostActionOptions{
-			Text:  value.Name,
-			Value: "opt" + id,
-		})
-	}
-	return postActionOptions
-}
-
-func GetAttachmentJSON(pluginURL string) string {
-	return `{
-			"attachments": [
-				  {
-					"text": "What would you like me to do?",
-					"actions": [
-					  {
-						"name": "Log time",
-						"integration": {
-						  "url": "` + pluginURL + `/createTimeLog",
-						  "context": {
-							"action": "showSelWP"
-						  }
-						}
-					  },
-					  {
-						"name": "Create Work Package",
-						"integration": {
-                          "url": "` + pluginURL + `/createWP",
-						  "context": {
-							"action": "createWP"
-						  }
-						}
-					  },
-					  {
-						"name": "View time logs",
-						"integration": {
-					      "url": "` + pluginURL + `/getTimeLog",
-						  "context": {
-							"action": "getTimeLog"
-						  }
-						}
-					  },
-					  {
-						"name": "Delete time log",
-						"integration": {
-                          "url": "` + pluginURL + `/delTimeLog",
-						  "context": {
-							"action": "delTimeLog"
-						  }
-						}
-					  },
-					  {
-						"name": "Delete Work Package",
-						"integration": {
-                         "url": "` + pluginURL + `/delWP",
-						  "context": {
-							"action": ""
-						  }
-						}
-					  },
-					  {
-						"name": "Bye :wave:",
-						"integration": {
-                          "url": "` + pluginURL + `/bye",
-						  "context": {
-							"action": "bye"
-						  }
-						}
-					  }
-					]
-				  }
-			]
-		}`
-}
-
-func getUpdatePostMsg(userId string, channelId string, msg string) *model.Post {
-	var post *model.Post
-	post = &model.Post{
-		Id:            menuPost.Id,
-		UserId:        userId,
-		ChannelId:     channelId,
-		Message:       msg,
-	}
-	return post
-}
-
-
-func getCreatePostMsg(userId string, channelId string, msg string) *model.Post {
-	var post *model.Post
-	post = &model.Post{
-		UserId:        userId,
-		ChannelId:     channelId,
-		Message:       msg,
-	}
-	return post
-}
-
-func setOPStr(p plugin.MattermostPlugin) {
-	opUrl, _ := p.API.KVGet("opUrl")
-	apiKey, _ := p.API.KVGet("apiKey")
-	opUrlStr = string(opUrl)
-	apiKeyStr = string(apiKey)
-}
-
 func OpAuth(p plugin.MattermostPlugin, w http.ResponseWriter, r *http.Request, pluginURL string) {
 	body, _ := ioutil.ReadAll(r.Body)
 	var jsonBody map[string]interface{}
@@ -233,9 +44,7 @@ func OpAuth(p plugin.MattermostPlugin, w http.ResponseWriter, r *http.Request, p
 	_ = p.API.KVDelete(apiKeyStr)
 
 	user, _ := p.API.GetUserByUsername(opBot)
-	req, _ := http.NewRequest("GET", opUrlStr + "/api/v3/users/me", nil)
-	req.SetBasicAuth("apikey", apiKeyStr)
-	resp, err := client.Do(req)
+	resp, err := GetUserDetails(opUrlStr, apiKeyStr)
 	var post *model.Post
 	if err == nil {
 		opResBody, _ := ioutil.ReadAll(resp.Body)
@@ -268,15 +77,13 @@ func ShowSelProject(p plugin.MattermostPlugin, w http.ResponseWriter, r *http.Re
 	body, _ := ioutil.ReadAll(r.Body)
 	var jsonBody map[string]interface{}
 	_ = json.Unmarshal(body, &jsonBody)
-	p.API.LogInfo("apikey: "+apiKeyStr+" opURL: "+opUrlStr)
+	p.API.LogInfo("apikey: "+ apiKeyStr +" opURL: "+ opUrlStr)
 	user, _ := p.API.GetUserByUsername(opBot)
-	req, _ := http.NewRequest("GET", opUrlStr + `/api/v3/projects`, nil)
-	req.SetBasicAuth("apikey", apiKeyStr)
-	resp, err := client.Do(req)
+	resp, err := GetProjects(opUrlStr, apiKeyStr)
 	var post *model.Post
 	if err == nil {
 		opResBody, _ := ioutil.ReadAll(resp.Body)
-		var opJsonRes Projects
+		var opJsonRes types.Projects
 		_ = json.Unmarshal(opResBody, &opJsonRes)
 		p.API.LogInfo("Projects response from op-mattermost: ", opJsonRes)
 		if opJsonRes.Type != "Error" {
@@ -325,13 +132,11 @@ func WPHandler(p plugin.MattermostPlugin, w http.ResponseWriter, r *http.Request
 	switch action {
 	case "showSelWP":
 		user, _ := p.API.GetUserByUsername(opBot)
-		req, _ := http.NewRequest("GET", opUrlStr + `/api/v3/projects/` + selectedOption[1] + `/work_packages`, nil)
-		req.SetBasicAuth("apikey", apiKeyStr)
-		resp, err := client.Do(req)
+		resp, err := GetWPsForProject(selectedOption[1], opUrlStr, apiKeyStr)
 		var post *model.Post
 		if err == nil {
 			opResBody, _ := ioutil.ReadAll(resp.Body)
-			var opJsonRes WorkPackages
+			var opJsonRes types.WorkPackages
 			_ = json.Unmarshal(opResBody, &opJsonRes)
 			p.API.LogInfo("Work packages response from op-mattermost: ", opJsonRes)
 			if opJsonRes.Type != "Error" {
@@ -387,18 +192,15 @@ func LoadTimeLogDlg(p plugin.MattermostPlugin, w http.ResponseWriter, r *http.Re
 	switch action {
 	case "showTimeLogDlg":
 		user, _ := p.API.GetUserByUsername(opBot)
-		var timeEntriesBody TimeEntriesBody
+		var timeEntriesBody types.TimeEntriesBody
 		timeEntriesBody.Links.WorkPackage.Href = "/api/v3/work_packages/" + selectedOption[1]
 		p.API.LogDebug("Time entries body: ", timeEntriesBody)
 		timeEntriesBodyJSON, _ := json.Marshal(timeEntriesBody)
-		req, _ := http.NewRequest("POST", opUrlStr + `/api/v3/time_entries/form`, bytes.NewBuffer(timeEntriesBodyJSON))
-		req.Header.Set("Content-Type", "application/json; charset=UTF-8")
-		req.SetBasicAuth("apikey", apiKeyStr)
-		resp, err := client.Do(req)
+		resp, err := PostTimeEntriesForm(timeEntriesBodyJSON, opUrlStr, apiKeyStr)
 		var post *model.Post
 		if err == nil {
 			opResBody, _ := ioutil.ReadAll(resp.Body)
-			var opJsonRes TimeEntries
+			var opJsonRes types.TimeEntries
 			_ = json.Unmarshal(opResBody, &opJsonRes)
 			p.API.LogDebug("Time entries response from OpenProject: ", opJsonRes)
 			if opJsonRes.Type != "Error" {
@@ -488,13 +290,11 @@ func GetTimeLog(p plugin.MattermostPlugin, w http.ResponseWriter, r *http.Reques
 	var jsonBody map[string]interface{}
 	_ = json.Unmarshal(body, &jsonBody)
 	user, _ := p.API.GetUserByUsername(opBot)
-	req, _ := http.NewRequest("GET", opUrlStr + `/api/v3/time_entries`, nil)
-	req.SetBasicAuth("apikey", apiKeyStr)
-	resp, err := client.Do(req)
+	resp, err := GetTimeEntries(opUrlStr, apiKeyStr)
 	var post *model.Post
 	if err == nil {
 		opResBody, _ := ioutil.ReadAll(resp.Body)
-		var opJsonRes TimeEntryList
+		var opJsonRes types.TimeEntryList
 		_ = json.Unmarshal(opResBody, &opJsonRes)
 		p.API.LogDebug("Time entries response from OpenProject: ", opJsonRes)
 		if opJsonRes.Type != "Error" {
@@ -519,7 +319,7 @@ func GetTimeLog(p plugin.MattermostPlugin, w http.ResponseWriter, r *http.Reques
 	}
 }
 
-func getOptArrayForTimeEntries(elements []TimeElement) string {
+func getOptArrayForTimeEntries(elements []types.TimeElement) string {
 	var tableTxt string
 	if len(elements) != 0 {
 		tableTxt = "#### Time entries logged by you\n"
@@ -551,6 +351,10 @@ func getOptArrayForTimeEntries(elements []TimeElement) string {
 		tableTxt = "Couldn't find time entries logged by you :confused: Try logging time using `/op`"
 	}
 	return tableTxt
+}
+
+func ShowDelWPSel(p plugin.MattermostPlugin, w http.ResponseWriter, r *http.Request, pluginURL string) {
+
 }
 
 func Logout(p plugin.MattermostPlugin, w http.ResponseWriter, r *http.Request) {

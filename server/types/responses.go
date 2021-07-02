@@ -1,4 +1,4 @@
-package util
+package types
 
 type Option struct {
 	Text string `json:"text"`
@@ -11,15 +11,15 @@ type Context struct {
 }
 
 type Integration struct {
-	Url string `json:"url"`
+	Url     string  `json:"url"`
 	Context Context `json:"context"`
 }
 
 type Action struct {
-	Name string `json:"name"`
-	Integration Integration`json:"integration"`
-	Type string `json:"type"`
-	Options []Option `json:"options"`
+	Name        string      `json:"name"`
+	Integration Integration `json:"integration"`
+	Type        string      `json:"type"`
+	Options     []Option    `json:"options"`
 }
 
 type Attachment struct {
