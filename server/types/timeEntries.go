@@ -140,6 +140,20 @@ type TimeEntriesBody struct {
 	} `json:"_links"`
 }
 
+type TimeEntryPostBody struct {
+	Links struct{
+		WorkPackage struct{
+			Href string `json:"href"`
+		} `json:"workPackage"`
+		Activity struct{
+			Href string `json:"href"`
+		} `json:"activity"`
+		Project struct{
+			Href string `json:"href"`
+		} `json:"project"`
+	} `json:"_links"`
+}
+
 type UpdateImmediately struct {
 	Href   string `json:"href"`
 	Method string `json:"method"`

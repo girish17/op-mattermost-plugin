@@ -2,17 +2,16 @@ package main
 
 import (
 	"encoding/json"
+	"github.com/girish17/op-mattermost-plugin/server/util"
 	"github.com/gorilla/mux"
+	"github.com/mattermost/mattermost-server/v5/model"
+	"github.com/mattermost/mattermost-server/v5/plugin"
 	"github.com/pkg/errors"
 	"io/ioutil"
 	"net/http"
 	"path/filepath"
 	"strings"
 	"sync"
-
-	"github.com/girish17/op-mattermost-plugin/server/util"
-	"github.com/mattermost/mattermost-server/v5/model"
-	"github.com/mattermost/mattermost-server/v5/plugin"
 )
 
 const opCommand = "op"
@@ -50,7 +49,7 @@ func (p *Plugin) ServeHTTP(c *plugin.Context, w http.ResponseWriter, r *http.Req
 		util.LoadTimeLogDlg(p.MattermostPlugin, w, r, pluginURL)
 		break
 	case "/logTime":
-		http.NotFound(w, r)
+		util.HandleSubmission(p.MattermostPlugin, w, r, pluginURL)
 		break
 	case "/getTimeLog":
 		util.GetTimeLog(p.MattermostPlugin, w, r, pluginURL)
@@ -75,8 +74,9 @@ func (p *Plugin) ServeHTTP(c *plugin.Context, w http.ResponseWriter, r *http.Req
 	}
 }
 
-// See https://developers.mattermost.com/extend/plugins/server/reference/
+// OnActivate See https://developers.mattermost.com/extend/plugins/server/reference/
 func (p *Plugin) OnActivate() error {
+
 	if p.API.GetConfig().ServiceSettings.SiteURL == nil {
 		p.API.LogError("SiteURL must be set. Some features will operate incorrectly if the SiteURL is not set. See documentation for details: http://about.mattermost.com/default-site-url")
 	}
@@ -85,27 +85,39 @@ func (p *Plugin) OnActivate() error {
 		return errors.Wrapf(err, "failed to register %s command", opCommand)
 	}
 
+	//if _, e := p.API.CreateBot(getBotModel(opBot)); e != nil {
+	//	return errors.Wrapf(e, "failed to create %s bot", opBot)
+	//}
+
 	return nil
 }
 
-func (p *Plugin) ExecuteCommand(c *plugin.Context, args *model.CommandArgs) (*model.CommandResponse, *model.AppError){
+func (p *Plugin) OnDeactivate() error {
+	if e := p.API.PermanentDeleteBot(opBot); e != nil {
+		return errors.Wrapf(e, "failed to permanently delete %s bot", opBot)
+	}
+	return nil
+}
+
+func (p *Plugin) ExecuteCommand(c *plugin.Context, args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
 	siteURL := p.GetSiteURL()
 	pluginURL = getPluginURL(siteURL)
-	p.API.LogDebug("Plugin URL :"+pluginURL)
+	logoURL := getLogoURL(siteURL)
+	p.API.LogDebug("Plugin URL :" + pluginURL)
 	if opUserID, _ := p.API.KVGet(args.UserId); opUserID == nil {
 		p.API.LogDebug("Creating interactive dialog...")
-		openAuthDialog(p, args.TriggerId, siteURL)
+		util.OpenAuthDialog(p.MattermostPlugin, args.TriggerId, pluginURL, logoURL)
 		resp := &model.CommandResponse{
 			ResponseType: model.COMMAND_RESPONSE_TYPE_EPHEMERAL,
-			Text: "opening op auth dialog",
-			Username: opBot,
-			IconURL: getLogoURL(siteURL),
+			Text:         "opening op auth dialog",
+			Username:     opBot,
+			IconURL:      logoURL,
 		}
 		return resp, nil
 	} else {
 		cmd := args.Command
 		cmdAction := strings.Split(cmd, " ")
-		p.API.LogInfo("Command arg entered: "+cmdAction[1])
+		p.API.LogInfo("Command arg entered: " + cmdAction[1])
 		opUserIDStr := string(opUserID)
 		apiKeyStr := strings.Split(opUserIDStr, " ")
 		opUrlStr := apiKeyStr[1]
@@ -114,7 +126,7 @@ func (p *Plugin) ExecuteCommand(c *plugin.Context, args *model.CommandArgs) (*mo
 		var cmdResp *model.CommandResponse
 
 		client := &http.Client{}
-		req, _ := http.NewRequest("GET", opUrlStr + "/api/v3/users/me", nil)
+		req, _ := http.NewRequest("GET", opUrlStr+"/api/v3/users/me", nil)
 		req.SetBasicAuth("apikey", apiKeyStr[0])
 		resp, _ := client.Do(req)
 		opResBody, _ := ioutil.ReadAll(resp.Body)
@@ -127,10 +139,10 @@ func (p *Plugin) ExecuteCommand(c *plugin.Context, args *model.CommandArgs) (*mo
 
 		cmdResp = &model.CommandResponse{
 			ResponseType: model.COMMAND_RESPONSE_TYPE_IN_CHANNEL,
-			Text: "Hello "+opJsonRes["name"]+" :)",
-			Username: opBot,
-			IconURL: getLogoURL(siteURL),
-			Props: attachmentMap,
+			Text:         "Hello " + opJsonRes["name"] + " :)",
+			Username:     opBot,
+			IconURL:      logoURL,
+			Props:        attachmentMap,
 		}
 
 		return cmdResp, nil
@@ -156,48 +168,25 @@ func getPluginURL(siteURL string) string {
 
 func createOpCommand(siteURL string) *model.Command {
 	return &model.Command{
-		Trigger:              opCommand,
-		Method:               "POST",
-		Username:             opBot,
-		IconURL:              getLogoURL(siteURL),
-		AutoComplete:         true,
-		AutoCompleteDesc:     "Invoke OpenProject bot for Mattermost",
-		AutoCompleteHint:     "",
-		DisplayName:          opBot,
-		Description:          "OpenProject integration for Mattermost",
-		URL:                  siteURL,
+		Trigger:          opCommand,
+		Method:           "POST",
+		Username:         opBot,
+		IconURL:          getLogoURL(siteURL),
+		AutoComplete:     true,
+		AutoCompleteDesc: "Invoke OpenProject bot for Mattermost",
+		AutoCompleteHint: "",
+		DisplayName:      opBot,
+		Description:      "OpenProject integration for Mattermost",
+		URL:              siteURL,
 	}
 }
 
-func openAuthDialog(p *Plugin, triggerId string, siteURL string) {
-	p.MattermostPlugin.API.OpenInteractiveDialog(model.OpenDialogRequest{
-		TriggerId: triggerId,
-		URL:        pluginURL + "/opAuth",
-		Dialog:    model.Dialog{
-			CallbackId:       "op_auth_dlg",
-			Title:            "OpenProject Authentication",
-			IntroductionText: "Please enter credentials to log in",
-			IconURL:          getLogoURL(siteURL),
-			Elements: []model.DialogElement{model.DialogElement{
-				DisplayName: "OpenProject URL",
-				Name:        "opUrl",
-				Type:        "text",
-				Default:     "http://localhost:8080",
-				Placeholder: "http://localhost:8080",
-				Optional:    false,
-				HelpText:    "Please enter the URL of OpenProject server",
-			}, model.DialogElement{
-				DisplayName: "OpenProject api-key",
-				Name:        "apiKey",
-				Type:        "text",
-				Placeholder: "api-key generated from your account page in OpenProject",
-				Optional:    false,
-				HelpText:    "api-key can be generated within 'My account' section of OpenProject",
-			}},
-			SubmitLabel:      "Log in",
-			NotifyOnCancel:   true,
-		},
-	})
+func getBotModel(opBot string) *model.Bot {
+	return &model.Bot{
+		Username:    opBot,
+		DisplayName: opBot,
+		Description: "OpenProject bot",
+	}
 }
 
 func (p *Plugin) setBotIcon() {

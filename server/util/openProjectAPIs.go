@@ -37,3 +37,10 @@ func GetTimeEntries(opUrlStr string, apiKeyStr string) (*http.Response, error) {
 	req.SetBasicAuth("apikey", apiKeyStr)
 	return client.Do(req)
 }
+
+func PostTimeEntry(timeEntryJSON []byte, opUrlStr string, apiKeyStr string) (*http.Response, error) {
+	req, _ := http.NewRequest("POST", opUrlStr +apiVersionStr+ "time_entries", bytes.NewBuffer(timeEntryJSON))
+	req.Header.Set("Content-Type", "application/json; charset=UTF-8")
+	req.SetBasicAuth("apikey", apiKeyStr)
+	return client.Do(req)
+}

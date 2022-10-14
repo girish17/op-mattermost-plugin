@@ -66,6 +66,16 @@ func getWPOptAttachmentJSON(pluginURL string, action string, options []types.Opt
 	return attachmentsJSON
 }
 
+func getCreatePostMsg(userId string, channelId string, msg string) *model.Post {
+	var post *model.Post
+	post = &model.Post{
+		UserId:        userId,
+		ChannelId:     channelId,
+		Message:       msg,
+	}
+	return post
+}
+
 func getOptArrayForProjectElements(elements []types.Element) []types.Option {
 	var options []types.Option
 	for _, element := range elements {
@@ -168,6 +178,7 @@ func GetAttachmentJSON(pluginURL string) string {
 		}`
 }
 
+
 func getUpdatePostMsg(userId string, channelId string, msg string) *model.Post {
 	var post *model.Post
 	post = &model.Post{
@@ -179,20 +190,17 @@ func getUpdatePostMsg(userId string, channelId string, msg string) *model.Post {
 	return post
 }
 
-
-func getCreatePostMsg(userId string, channelId string, msg string) *model.Post {
-	var post *model.Post
-	post = &model.Post{
-		UserId:        userId,
-		ChannelId:     channelId,
-		Message:       msg,
-	}
-	return post
-}
-
 func setOPStr(p plugin.MattermostPlugin) {
 	opUrl, _ := p.API.KVGet("opUrl")
 	apiKey, _ := p.API.KVGet("apiKey")
 	opUrlStr = string(opUrl)
 	apiKeyStr = string(apiKey)
+}
+
+func checkDate(spentOn string) bool{
+	return true
+}
+
+func checkHours(spentHours string, billableHours string) bool {
+	return true
 }

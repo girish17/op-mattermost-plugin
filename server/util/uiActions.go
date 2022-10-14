@@ -15,16 +15,21 @@ import (
 
 const opBot = "op-mattermost"
 
-
 var menuPost *model.Post
 
 var respHTTP http.Response
 
-var client =  &http.Client{}
+var client = &http.Client{}
 
 var opUrlStr string
 
 var apiKeyStr string
+
+var projectId string
+
+var wpId string
+
+var activityId string
 
 func OpAuth(p plugin.MattermostPlugin, w http.ResponseWriter, r *http.Request, pluginURL string) {
 	body, _ := ioutil.ReadAll(r.Body)
@@ -53,31 +58,26 @@ func OpAuth(p plugin.MattermostPlugin, w http.ResponseWriter, r *http.Request, p
 		p.API.LogDebug("Response from op-mattermost: ", opJsonRes)
 		if opJsonRes["_type"] != "Error" {
 			_ = p.API.KVSet(mmUserID, opUserID)
-			post = getCreatePostMsg(user.Id, jsonBody["channel_id"].(string), "Hello "+opJsonRes["name"]+" :)")
+			post = getCreatePostMsg(user.Id, jsonBody["channel_id"].(string), "Hello "+opJsonRes["firstName"]+" :)")
 			var attachmentMap map[string]interface{}
 			_ = json.Unmarshal([]byte(GetAttachmentJSON(pluginURL)), &attachmentMap)
 			post.SetProps(attachmentMap)
-			w.Header().Set("Content-Type", "application/json; charset=utf-8")
-			w.WriteHeader(200)
-			respHTTP.Write(w)
 		} else {
 			p.API.LogError(opJsonRes["errorIdentifier"] + " " + opJsonRes["message"])
 			post = getCreatePostMsg(user.Id, jsonBody["channel_id"].(string), opJsonRes["message"])
-			http.Error(w, err.Error(), http.StatusUnauthorized)
 		}
 	} else {
-			p.API.LogError("OpenProject login failed: ", err)
-			post = getCreatePostMsg(user.Id, jsonBody["channel_id"].(string), "OpenProject authentication failed. Please try again.")
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+		p.API.LogError("OpenProject login failed: ", err)
+		post = getCreatePostMsg(user.Id, jsonBody["channel_id"].(string), "OpenProject authentication failed. Please try again.")
 	}
 	menuPost, _ = p.API.CreatePost(post)
 }
 
-func ShowSelProject(p plugin.MattermostPlugin, w http.ResponseWriter, r *http.Request, pluginURL string)  {
+func ShowSelProject(p plugin.MattermostPlugin, w http.ResponseWriter, r *http.Request, pluginURL string) {
 	body, _ := ioutil.ReadAll(r.Body)
 	var jsonBody map[string]interface{}
 	_ = json.Unmarshal(body, &jsonBody)
-	p.API.LogInfo("apikey: "+ apiKeyStr +" opURL: "+ opUrlStr)
+	p.API.LogInfo("apikey: " + apiKeyStr + " opURL: " + opUrlStr)
 	user, _ := p.API.GetUserByUsername(opBot)
 	resp, err := GetProjects(opUrlStr, apiKeyStr)
 	var post *model.Post
@@ -93,18 +93,13 @@ func ShowSelProject(p plugin.MattermostPlugin, w http.ResponseWriter, r *http.Re
 			var attachmentMap map[string]interface{}
 			_ = json.Unmarshal(getProjectOptAttachmentJSON(pluginURL, "showSelWP", options), &attachmentMap)
 			post.SetProps(attachmentMap)
-			w.Header().Set("Content-Type", "application/json; charset=utf-8")
-			w.WriteHeader(200)
-			respHTTP.Write(w)
 		} else {
 			p.API.LogError("Failed to fetch projects from OpenProject")
 			post = getUpdatePostMsg(user.Id, jsonBody["channel_id"].(string), "Failed to fetch projects from OpenProject")
-			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	} else {
 		p.API.LogError("Failed to fetch projects from OpenProject: ", err)
 		post = getUpdatePostMsg(user.Id, jsonBody["channel_id"].(string), "Failed to fetch projects from OpenProject")
-		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 	p.API.UpdatePost(post)
 }
@@ -125,14 +120,15 @@ func WPHandler(p plugin.MattermostPlugin, w http.ResponseWriter, r *http.Request
 			break
 		case "selected_option":
 			selectedOption = strings.Split(value.(string), "opt")
-			p.API.LogInfo("selected option: " + selectedOption[1])
+			projectId = selectedOption[1]
+			p.API.LogInfo("selected option: " + projectId)
 			break
 		}
 	}
 	switch action {
 	case "showSelWP":
 		user, _ := p.API.GetUserByUsername(opBot)
-		resp, err := GetWPsForProject(selectedOption[1], opUrlStr, apiKeyStr)
+		resp, err := GetWPsForProject(projectId, opUrlStr, apiKeyStr)
 		var post *model.Post
 		if err == nil {
 			opResBody, _ := ioutil.ReadAll(resp.Body)
@@ -152,12 +148,10 @@ func WPHandler(p plugin.MattermostPlugin, w http.ResponseWriter, r *http.Request
 			} else {
 				p.API.LogError("Failed to fetch work packages from OpenProject")
 				post = getUpdatePostMsg(user.Id, jsonBody["channel_id"].(string), "Failed to work packages from OpenProject")
-				http.Error(w, err.Error(), http.StatusInternalServerError)
 			}
 		} else {
 			p.API.LogError("Failed to fetch work packages from OpenProject: ", err)
 			post = getUpdatePostMsg(user.Id, jsonBody["channel_id"].(string), "Failed to work packages from OpenProject")
-			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 		p.API.UpdatePost(post)
 		break
@@ -185,7 +179,8 @@ func LoadTimeLogDlg(p plugin.MattermostPlugin, w http.ResponseWriter, r *http.Re
 			break
 		case "selected_option":
 			selectedOption = strings.Split(value.(string), "opt")
-			p.API.LogInfo("selected option: " + selectedOption[1])
+			wpId = selectedOption[1]
+			p.API.LogInfo("selected option: " + wpId)
 			break
 		}
 	}
@@ -193,7 +188,7 @@ func LoadTimeLogDlg(p plugin.MattermostPlugin, w http.ResponseWriter, r *http.Re
 	case "showTimeLogDlg":
 		user, _ := p.API.GetUserByUsername(opBot)
 		var timeEntriesBody types.TimeEntriesBody
-		timeEntriesBody.Links.WorkPackage.Href = "/api/v3/work_packages/" + selectedOption[1]
+		timeEntriesBody.Links.WorkPackage.Href = "/api/v3/work_packages/" + wpId
 		p.API.LogDebug("Time entries body: ", timeEntriesBody)
 		timeEntriesBodyJSON, _ := json.Marshal(timeEntriesBody)
 		resp, err := PostTimeEntriesForm(timeEntriesBodyJSON, opUrlStr, apiKeyStr)
@@ -208,20 +203,15 @@ func LoadTimeLogDlg(p plugin.MattermostPlugin, w http.ResponseWriter, r *http.Re
 				openLogTimeDialog(p, triggerId, pluginURL, options)
 				post = getUpdatePostMsg(user.Id, jsonBody["channel_id"].(string), "Opening time log dialog...")
 				p.API.UpdatePost(post)
-				w.Header().Set("Content-Type", "application/json; charset=utf-8")
-				w.WriteHeader(200)
-				respHTTP.Write(w)
 			} else {
 				p.API.LogError("Failed to fetch activities from OpenProject")
-				post = getUpdatePostMsg(user.Id, jsonBody["channel_id"].(string), "Failed to activities from OpenProject")
+				post = getUpdatePostMsg(user.Id, jsonBody["channel_id"].(string), "Failed to get activities from OpenProject")
 				p.API.UpdatePost(post)
-				http.Error(w, err.Error(), http.StatusInternalServerError)
 			}
 		} else {
 			p.API.LogError("Failed to fetch activities from OpenProject")
-			post = getUpdatePostMsg(user.Id, jsonBody["channel_id"].(string), "Failed to activities from OpenProject")
+			post = getUpdatePostMsg(user.Id, jsonBody["channel_id"].(string), "Failed to get activities from OpenProject")
 			p.API.UpdatePost(post)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 		break
 	case "cnfDelWP":
@@ -302,20 +292,15 @@ func GetTimeLog(p plugin.MattermostPlugin, w http.ResponseWriter, r *http.Reques
 			p.API.LogInfo("Time entries from op-mattermost: ", timeLogs)
 			post = getCreatePostMsg(user.Id, jsonBody["channel_id"].(string), timeLogs)
 			p.API.CreatePost(post)
-			w.Header().Set("Content-Type", "application/json; charset=utf-8")
-			w.WriteHeader(200)
-			respHTTP.Write(w)
 		} else {
 			p.API.LogError("Failed to fetch time entries from OpenProject")
 			post = getUpdatePostMsg(user.Id, jsonBody["channel_id"].(string), "Failed to time entries from OpenProject")
 			p.API.UpdatePost(post)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	} else {
 		p.API.LogError("Failed to fetch time entries from OpenProject")
 		post = getUpdatePostMsg(user.Id, jsonBody["channel_id"].(string), "Failed to time entries from OpenProject")
 		p.API.UpdatePost(post)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
 
@@ -357,18 +342,99 @@ func ShowDelWPSel(p plugin.MattermostPlugin, w http.ResponseWriter, r *http.Requ
 
 }
 
-func Logout(p plugin.MattermostPlugin, w http.ResponseWriter, r *http.Request) {
-		body, _ := ioutil.ReadAll(r.Body)
-		var jsonBody map[string]interface{}
-		_ = json.Unmarshal(body, &jsonBody)
-		mmUserID := jsonBody["user_id"].(string)
-		p.API.LogInfo("Deleting op login for mm user id: " + mmUserID)
-		_ = p.API.KVDelete(mmUserID)
+func OpenAuthDialog(p plugin.MattermostPlugin, triggerId string, pluginURL string, logoURL string) {
+	p.API.OpenInteractiveDialog(model.OpenDialogRequest{
+		TriggerId: triggerId,
+		URL:       pluginURL + "/opAuth",
+		Dialog: model.Dialog{
+			CallbackId:       "op_auth_dlg",
+			Title:            "OpenProject Authentication",
+			IntroductionText: "Please enter credentials to log in",
+			IconURL:          logoURL,
+			Elements: []model.DialogElement{model.DialogElement{
+				DisplayName: "OpenProject URL",
+				Name:        "opUrl",
+				Type:        "text",
+				Default:     "http://localhost:8080",
+				Placeholder: "http://localhost:8080",
+				Optional:    false,
+				HelpText:    "Please enter the URL of OpenProject server",
+			}, model.DialogElement{
+				DisplayName: "OpenProject api-key",
+				Name:        "apiKey",
+				Type:        "text",
+				Placeholder: "api-key generated from your account page in OpenProject",
+				Optional:    false,
+				HelpText:    "api-key can be generated within 'My account' section of OpenProject",
+			}},
+			SubmitLabel:    "Log in",
+			NotifyOnCancel: true,
+		},
+	})
+}
 
-		user, _ := p.API.GetUserByUsername(opBot)
-		post := getUpdatePostMsg(user.Id, jsonBody["channel_id"].(string), ":wave:")
-		_, _ = p.API.UpdatePost(post)
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		w.WriteHeader(http.StatusOK)
-		respHTTP.Write(w)
+func Logout(p plugin.MattermostPlugin, w http.ResponseWriter, r *http.Request) {
+	body, _ := ioutil.ReadAll(r.Body)
+	var jsonBody map[string]interface{}
+	_ = json.Unmarshal(body, &jsonBody)
+	mmUserID := jsonBody["user_id"].(string)
+	p.API.LogInfo("Deleting op login for mm user id: " + mmUserID)
+	_ = p.API.KVDelete(mmUserID)
+
+	user, _ := p.API.GetUserByUsername(opBot)
+	post := getUpdatePostMsg(user.Id, jsonBody["channel_id"].(string), ":wave:")
+	_, _ = p.API.UpdatePost(post)
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	respHTTP.Write(w)
+}
+
+func HandleSubmission(p plugin.MattermostPlugin, w http.ResponseWriter, r *http.Request, pluginURL string) {
+	body, _ := ioutil.ReadAll(r.Body)
+	var jsonBody map[string]interface{}
+	_ = json.Unmarshal(body, &jsonBody)
+	p.API.LogInfo("Submission data: ")
+	p.API.LogInfo("spent_on: ", jsonBody["spent_on"], " comments: ", jsonBody["comments"], " spent_hours: ", jsonBody["spent_hours"])
+	p.API.LogInfo(" billable_hours: ", jsonBody["billable_hours"], " activity: ", jsonBody["activity"])
+	user, _ := p.API.GetUserByUsername(opBot)
+	if checkDate(jsonBody["spent_on"].(string)) {
+		if checkHours(jsonBody["spent_hours"].(string), jsonBody["billable_hours"].(string)) {
+			var timeEntriesBody types.TimeEntryPostBody
+			timeEntriesBody.Links.Project.Href = "/api/v3/projects/" + projectId
+			timeEntriesBody.Links.WorkPackage.Href = "/api/v3/work_packages/" + wpId
+			activityId = strings.Split(jsonBody["activity"].(string), "opt")[1]
+			timeEntriesBody.Links.Activity.Href = "/api/v3/time_entries/activities/" + activityId
+			p.API.LogDebug("Time entries body: ", timeEntriesBody)
+			timeEntriesBodyJSON, _ := json.Marshal(timeEntriesBody)
+			resp, err := PostTimeEntry(timeEntriesBodyJSON, opUrlStr, apiKeyStr)
+			var post *model.Post
+			if err == nil {
+				opResBody, _ := ioutil.ReadAll(resp.Body)
+				var opJsonRes types.TimeEntries
+				_ = json.Unmarshal(opResBody, &opJsonRes)
+				p.API.LogDebug("Time entries response from OpenProject: ", opJsonRes)
+				if opJsonRes.Type != "Error" {
+					p.API.LogInfo("Time logged. Save response: ")
+					post = getUpdatePostMsg(user.Id, jsonBody["channel_id"].(string), "Time entry ID - ")
+					p.API.UpdatePost(post)
+				} else {
+					p.API.LogError("Time entry save failed")
+					post = getUpdatePostMsg(user.Id, jsonBody["channel_id"].(string), "Time entry save failed")
+					p.API.UpdatePost(post)
+				}
+			} else {
+				p.API.LogError("Failed to save time entry in OpenProject")
+				post = getUpdatePostMsg(user.Id, jsonBody["channel_id"].(string), "Failed to save time entry in OpenProject")
+				p.API.UpdatePost(post)
+			}
+		} else {
+			p.API.LogInfo("Billable hours incorrect: ", jsonBody["billable_hours"])
+			post := getUpdatePostMsg(user.Id, jsonBody["channel_id"].(string), "**It seems that billable hours was incorrect :thinking: Please note billable hours should be less than or equal to logged hours. **")
+			p.API.UpdatePost(post)
+		}
+	} else {
+		p.API.LogInfo("Date incorrect: ", jsonBody["spent_on"])
+		post := getUpdatePostMsg(user.Id, jsonBody["channel_id"].(string), "**It seems that date was incorrect :thinking: Please enter a date within last one year and in YYYY-MM-DD format. **")
+		p.API.UpdatePost(post)
+	}
 }
