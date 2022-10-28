@@ -7,3 +7,7 @@ Following enhancements (on top of the [existing slash command features](https://
 
 # Development setup
 - https://developers.mattermost.com/integrate/plugins/developer-setup/
+
+# Integrated Development Environment (IDE) used
+
+![GoLand logo](https://resources.jetbrains.com/storage/products/company/brand/logos/GoLand.svg)
