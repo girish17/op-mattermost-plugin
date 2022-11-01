@@ -10,4 +10,6 @@ Following enhancements (on top of the [existing slash command features](https://
 
 # Integrated Development Environment (IDE) used
 
+Community version of the IDE available under an open source license
+
 ![GoLand logo](https://resources.jetbrains.com/storage/products/company/brand/logos/GoLand.svg)
