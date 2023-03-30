@@ -11,7 +11,7 @@ Following enhancements (on top of the [existing slash command features](https://
 # Mirror repositories
 This project is also available on other repositories (as an alternative to GitHub) om:
 - Notabug.org at https://notabug.org/girishm/op-mattermost-plugin
-- SourceHut at https://sr.ht/~girishm/op-mattermost/
+- SourceHut at https://git.sr.ht/~girishm/op-mattermost-plugin
 
 # Integrated Development Environment (IDE) used
 
