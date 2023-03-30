@@ -8,6 +8,11 @@ Following enhancements (on top of the [existing slash command features](https://
 # Development setup
 - https://developers.mattermost.com/integrate/plugins/developer-setup/
 
+# Mirror repositories
+This project is also available on other repositories (as an alternative to GitHub) om:
+- Notabug.org at https://notabug.org/girishm/op-mattermost-plugin
+- SourceHut at https://sr.ht/~girishm/op-mattermost/
+
 # Integrated Development Environment (IDE) used
 
 Community version of the IDE available under an open source license
