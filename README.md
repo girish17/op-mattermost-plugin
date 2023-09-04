@@ -15,6 +15,5 @@ This project is also available on other repositories (as an alternative to GitHu
 
 # Integrated Development Environment (IDE) used
 
-Community version of the IDE available under an open source license
 
 ![GoLand logo](https://resources.jetbrains.com/storage/products/company/brand/logos/GoLand.svg)
