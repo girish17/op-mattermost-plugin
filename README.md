@@ -9,7 +9,7 @@ Following enhancements (on top of the [existing slash command features](https://
 - https://developers.mattermost.com/integrate/plugins/developer-setup/
 
 # Mirror repositories
-This project is also available on other repositories (as an alternative to GitHub) om:
+This project is also available on other repositories (as an alternative to GitHub) on:
 - Notabug.org at https://notabug.org/girishm/op-mattermost-plugin
 - SourceHut at https://git.sr.ht/~girishm/op-mattermost-plugin
 
